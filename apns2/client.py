@@ -78,8 +78,11 @@ class APNsClient(object):
 
     def send_notification(self, token_hex: str, notification: Payload, topic: Optional[str] = None,
                           priority: NotificationPriority = NotificationPriority.Immediate,
-                          expiration: Optional[int] = None, collapse_id: Optional[str] = None) -> None:
-        response = self.send_notification_async(token_hex, notification, topic, priority, expiration, collapse_id)
+                          expiration: Optional[int] = None, collapse_id: Optional[str] = None,
+                          *, push_type: Optional[NotificationType] = None) -> None:
+        response = self.send_notification_async(
+            token_hex, notification, topic, priority, expiration, collapse_id, push_type
+        )
         result = self.get_notification_result(response)
         if result != 'Success':
             if isinstance(result, tuple):
@@ -87,6 +90,19 @@ class APNsClient(object):
                 raise exception_class_for_reason(reason)(info)
             else:
                 raise exception_class_for_reason(result)
+
+    def send_voip_notification(self, token_hex: str, notification: Payload, topic: str,
+                               collapse_id: Optional[str] = None) -> None:
+        voip_topic = topic if topic.endswith('.voip') else f'{topic}.voip'
+        self.send_notification(
+            token_hex,
+            notification,
+            topic=voip_topic,
+            priority=NotificationPriority.Immediate,
+            expiration=0,
+            collapse_id=collapse_id,
+            push_type=NotificationType.VoIP,
+        )
 
     def send_notification_async(self, token_hex: str, notification: Payload, topic: Optional[str] = None,
                                 priority: NotificationPriority = NotificationPriority.Immediate,
@@ -121,7 +137,7 @@ class APNsClient(object):
         if inferred_push_type:
             headers['apns-push-type'] = inferred_push_type
 
-        if priority != DEFAULT_APNS_PRIORITY:
+        if priority != DEFAULT_APNS_PRIORITY or inferred_push_type == NotificationType.VoIP.value:
             headers['apns-priority'] = priority.value
 
         if expiration is not None:

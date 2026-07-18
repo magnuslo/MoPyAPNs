@@ -25,6 +25,10 @@ topic = 'com.example.App'
 client = APNsClient('key.pem', use_sandbox=False, use_alternative_port=False)
 client.send_notification(token_hex, payload, topic)
 
+# To send a PushKit VoIP notification with the required APNs headers
+voip_payload = Payload(custom={'invite_id': 'call-invitation-id'})
+client.send_voip_notification(token_hex, voip_payload, topic)
+
 # To send a notification with a specific interruption level (iOS 15+)
 payload = Payload(alert="Hello World!", sound="default", interruption_level='time-sensitive')
 client.send_notification(token_hex, payload, topic)

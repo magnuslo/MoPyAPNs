@@ -49,6 +49,52 @@ def test_send_notification(client, payload, httpx_mock, tokens):
     client.send_notification(tokens[0], payload, topic=TOPIC)
 
 
+def test_send_notification_accepts_explicit_push_type(client, payload, httpx_mock, tokens):
+    # Given
+    httpx_mock.add_response(status_code=200)
+
+    # When
+    client.send_notification(
+        tokens[0],
+        payload,
+        topic=TOPIC,
+        push_type=NotificationType.Background,
+    )
+
+    # Then
+    request = httpx_mock.get_request()
+    assert request.headers['apns-push-type'] == NotificationType.Background.value
+
+
+def test_send_voip_notification_sets_pushkit_headers(client, payload, httpx_mock, tokens):
+    # Given
+    httpx_mock.add_response(status_code=200)
+
+    # When
+    client.send_voip_notification(tokens[0], payload, topic=TOPIC)
+
+    # Then
+    request = httpx_mock.get_request()
+    assert request.headers['apns-push-type'] == NotificationType.VoIP.value
+    assert request.headers['apns-topic'] == f'{TOPIC}.voip'
+    assert request.headers['apns-priority'] == NotificationPriority.Immediate.value
+    assert request.headers['apns-expiration'] == '0'
+
+
+def test_send_notification_keeps_normal_alert_defaults(client, payload, httpx_mock, tokens):
+    # Given
+    httpx_mock.add_response(status_code=200)
+
+    # When
+    client.send_notification(tokens[0], payload, topic=TOPIC)
+
+    # Then
+    request = httpx_mock.get_request()
+    assert request.headers['apns-push-type'] == NotificationType.Alert.value
+    assert 'apns-priority' not in request.headers
+    assert 'apns-expiration' not in request.headers
+
+
 def test_send_notification_raises_apns_exception(client, payload, httpx_mock, tokens):
     response_payload = {'reason': 'BadDeviceToken'}
     httpx_mock.add_response(status_code=400, json=response_payload)
